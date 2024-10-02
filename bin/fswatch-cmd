@@ -1,0 +1,260 @@
+#!/usr/bin/env bash
+
+# Require Bash version 5.0 or higher
+if ((BASH_VERSINFO[0] < 5)); then
+    error "The script fswatch-cmd requires Bash 5.0 or higher. You are using Bash ${BASH_VERSION}."
+    exit 1
+fi
+# note: for 'read -t 0' to work you need at least bash 4.0. I can only test on bash version 5, so I just require that version.
+
+readonly USAGE="
+NAME
+
+  fswatch-cmd - monitoring and batching filesystem changes into smooth, efficient command executions.
+                For example can be used for efficiently and live mirroring of a directory. 
+
+USAGE
+
+  fswatch-cmd [-e EVENTS] [-x EVENTS] WATCHDIR COMMAND [ARG]..
+
+DESCRIPTION
+
+  The fswatch-cmd monitors the specified WATCHDIR for filesystem changes. When changes are detected, 
+  it executes the specified COMMAND (along with any optional arguments).
+
+  While the COMMAND is running, fswatch-cmd continues to collect incoming events. This allows it 
+  to batch these events and pass them to the COMMAND on the next execution, rather than triggering 
+  the COMMAND for each individual event.
+
+  All detected events are passed to the COMMAND via the EVENTS environment variable, where 
+  each event is separated by a newline
+
+  Key Advantages of using fswatch-cmd:
+
+   1. Event Batching: It aggregates filesystem events and passes them to the command at once, 
+      reducing redundant command executions.
+   2. Performance Efficiency: Avoids launching a new process for each event, which can be resource-intensive.
+   3. Simplified Event Handling: The COMMAND can handle all collected events in a single execution, 
+      improving the logic and reducing complexity when handling frequent or high-volume filesystem changes.
+
+
+OPTIONS
+
+  -e   comma-separated list of allowed events
+  -x   comma-separated list of excluded events 
+
+  All events are described in the manpage of fswatch.
+
+EXAMPLE
+
+  Mirror a folder directly when the folder's contents changes
+
+       fswatch-cmd  src-folder/   mirror src-folder/ dest-server:dst-folder/
+
+  The 'mirror' command is a wrapper around rsync to easily do mirroring.
+  See: https://github.com/harcokuppens/mirror/
+
+"
+
+LOGLEVEL="2" # DEBUG(3),INFO(2),ERROR(1),OFF(0)
+excluded_events_array=()
+allowed_events_array=()
+
+readbuffer() {
+    local -n rb_segments="$1" # Name reference to the segments array given as input
+    local separator="$2"      # separator used to split input stream
+    rb_segments=()
+
+    debug "start readbuffer\n"
+
+    debug "read a segment blocking until available\n"
+    read -r -d "$separator" segment
+    exitcode=$?
+    debug "exitcode $exitcode \n"
+    if [[ "$exitcode" -ne "0" ]]; then
+        debug "EOF detected by failed reading a segment, exitcode: $?.\n"
+        debug "Return from readbuffer with exitcode 1 to designate buffer is completely read.\n"
+        # return non-zero return status to stop any loop waiting on readbuffer
+        return 1
+    fi
+    rb_segments+=("$segment")
+    debug "segment $segment\n"
+
+    # read remaining segments in the buffer
+    # we first check if there is data on the buffer, only then we read the segment
+    # if buffer is empty we return
+    while read -r -t 0 || {
+        debug "read says buffer is empty with exitcode  $?\n"
+        false
+    }; do
+        # note: when no data in buffer then 'read -r -t 0' returns 1 and the while loop ends
+        #       but when EOF of input then 'read -r -t 0' still returns 0 (BUG!!)
+        #       We can detect EOF by 'read -r -d "" event' which then returns with error or empty variable
+        debug "read a segment\n"
+        read -r -d "$separator" segment
+        exitcode=$?
+        debug "exitcode $exitcode \n"
+        if [[ "$exitcode" -ne "0" ]]; then
+            debug "EOF detected by failed reading a segment, exitcode: $?.\n"
+            debug "Return from readbuffer with exitcode 0 to designate we have data from buffer and buffer is now empty.\n"
+            debug "On next call on readbuffer the loop on readbuffer is stopped because no data available from buffer anymore.\n"
+
+            # break loop so that program can still handle input we got so far
+            # on next call to this function we quit with error
+            break
+        fi
+        rb_segments+=("$segment")
+        debug "segment $segment\n"
+
+        # Sometimes you are reading the buffer being filled.
+        # So, when buffer empty just sleep 3 seconds to catch following messages just coming into buffer;
+        if ! read -r -t 0; then
+            sleep 3
+        fi
+    done
+}
+
+# General function to check if a variable contains any element from an array
+# Array is passed by reference using 'declare -n'
+contains_in_array() {
+    local var_to_check="$1"   # The variable to check
+    declare -n array_ref="$2" # 'declare -n' makes 'array_ref' a reference to the array passed by name
+
+    for element in "${array_ref[@]}"; do
+        if [[ "$var_to_check" == *"$element"* ]]; then
+            echo "true"
+            return
+        fi
+    done
+
+    echo "false"
+}
+
+serialize_array() {
+    local -n array_ref="$1"    # Name reference to the input array
+    local separator="$2"       # The separator to be used
+    local serialized_string="" # Initialize an empty string
+
+    # Loop through each element of the array
+    for element in "${array_ref[@]}"; do
+        serialized_string+="$element$separator" # Append element followed by the separator
+    done
+
+    # Remove the trailing separator
+    [[ -n "$separator" ]] && serialized_string="${serialized_string%$separator}"
+
+    # Output the serialized string
+    echo -n "$serialized_string"
+}
+
+# make from all args a single string in which each arg is quoted with single quotes
+# to show all the individual args in the string.
+args2str() {
+    result=""
+    sep=""
+    for arg in "$@"; do
+        if [[ $arg =~ [[:space:]]+ ]]; then
+            result="$result$sep'$arg'"
+        else
+            result="$result$sep$arg"
+        fi
+        sep=" "
+    done
+    echo "$result"
+}
+
+# logging functions
+# all message use these logging functions
+debug() {
+    if [[ "$LOGLEVEL" -ge "3" ]]; then
+        printf "fswatch-cmd:DEBUG: $1" 1>&2
+    fi
+}
+
+info() {
+    if [[ "$LOGLEVEL" -ge "2" ]]; then
+        printf "fswatch-cmd:INFO: $1" 1>&2
+    fi
+}
+
+error() {
+    if [[ "$LOGLEVEL" -ge "1" ]]; then
+        printf "fswatch-cmd:ERROR: $1" 1>&2
+    fi
+}
+
+fswatchcmd() {
+
+    # Parse command-line arguments
+    while getopts ":x:e:" opt; do
+        case "$opt" in
+        x) excluded_events_commasep=${OPTARG} ;; # Get the comma-separated list of events excluded
+        e) allowed_events_commasep=${OPTARG} ;;  # Get the comma-separated list allowed
+        *) error "Invalid option: -$OPTARG\n$USAGE\n" && exit 1 ;;
+        esac
+    done
+
+    # split the comma separated list of event to be excluded from the list of events being watched
+    excluded_events_array=(${excluded_events_commasep//,/ })
+    allowed_events_array=(${allowed_events_commasep//,/ })
+
+    debug "allowed_events_array:  ${allowed_events_array[*]}\n"
+    debug "excluded_events_array:  ${excluded_events_array[*]}\n"
+
+    # shift found options from args
+    shift $((OPTIND - 1))
+
+    watchdir="$1"
+    shift
+    # remaining args are now the command to run and its args
+
+    if ! [[ -d "$watchdir" ]]; then
+        error "invalid watchdir '$watchdir'\n$USAGE\n"
+        exit 1
+    fi
+
+    fswatch_allowed_events_args=()
+    for elem in "${allowed_events_array[@]}"; do
+        fswatch_allowed_events_args+=('--event')
+        fswatch_allowed_events_args+=($elem)
+    done
+
+    cmd=$(args2str "$@")
+    info "starting watching $watchdir\n"
+    info "with cmd: '$cmd'\n"
+    debug "fswatch cmd:" $(args2str fswatch -t -f "%FT%T" -x -r -0 "${fswatch_allowed_events_args[@]}" "$watchdir") "\n"
+    segments=()
+    fswatch -t -f "%FT%T" -x -r -0 "${fswatch_allowed_events_args[@]}" "$watchdir" | while readbuffer segments $'\0'; do
+
+        # Serialize array using a newline as separator
+        export EVENTS=$(serialize_array segments $'\n')
+
+        # run cmd
+        # note: we run process in background because otherwise on signal
+        #       this process gets signal, and not this shell script!
+        debug "running cmd: $cmd \n"
+        "$@" &
+        pid=$!
+        wait $pid
+        exitcode=$?
+        debug "exitcode cmd $exitcode \n"
+        if [[ "$exitcode" -ne "0" ]]; then
+            error "exitcode:$exitcode from cmd : $cmd\n"
+        fi
+    done
+}
+
+# Function to handle termination signals and kill the child process
+cleanup() {
+
+    info "terminating with child process...\n"
+
+    # Kill all child processes started by this script
+    pkill -P $$
+    exit 1
+}
+
+# Trap termination signals (SIGTERM, SIGINT) and call cleanup
+trap cleanup SIGTERM SIGINT
+
+fswatchcmd "$@"
