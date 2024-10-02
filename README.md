@@ -1,24 +1,25 @@
 # fswatch-cmd
 
-Monitoring and batching filesystem changes into smooth, efficient command executions. For
-example can be used for efficiently and live mirroring of a directory.
+Monitoring and batching filesystem changes into smooth, efficient command
+executions. For example can be used for efficiently and live mirroring of a
+directory.
 
 Mirror a folder directly when the folder's contents changes
 
     fswatch-cmd  src-folder/   mirror src-folder/ dest-server:dst-folder/
 
-The [mirror](https://github.com/harcokuppens/mirror/) command is a wrapper around rsync to
-easily do mirroring. By running above command using a system service guarantees automatic
-mirroring when the system starts up.
+The [mirror](https://github.com/harcokuppens/mirror/) command is a wrapper
+around rsync to easily do mirroring. By running above command using a system
+service guarantees automatic mirroring when the system starts up.
 
 The `fswatch-cmd` is build on top of the
-[fswatch](https://github.com/emcrisostomo/fswatch) command which provides a cross-platform
-file change monitor.
+[fswatch](https://github.com/emcrisostomo/fswatch) command which provides a
+cross-platform file change monitor.
 
 ## Installation
 
-The `mirror` and `diffdir` commands are simple scripts in `bash`, so you can easily fetch
-the latest release version from github:
+The `mirror` and `diffdir` commands are simple scripts in `bash`, so you can
+easily fetch the latest release version from github:
 
 ```bash
 INSTALL_DIR=/usr/local/bin # make sure INSTALL_DIR is in your PATH environment variable
@@ -39,9 +40,9 @@ Documentation by giving no arguments to `fswatch-cmd` command:
 ```console
 NAME
 
-    fswatch-cmd - monitoring and batching filesystem changes into smooth, efficient command
-                  executions. For example can be used for efficiently and live mirroring of
-                  a directory.
+    fswatch-cmd - monitoring and batching filesystem changes into smooth, efficient
+    command executions. For example can be used for efficiently and live mirroring
+    of a directory.
 
 USAGE
 
@@ -49,25 +50,26 @@ USAGE
 
 DESCRIPTION
 
-    The fswatch-cmd monitors the specified WATCHDIR for filesystem changes. When changes are
-    detected, it executes the specified COMMAND (along with any optional arguments).
+    The fswatch-cmd monitors the specified WATCHDIR for filesystem changes. When
+    changes are detected, it executes the specified COMMAND (along with any optional
+    arguments).
 
-    While the COMMAND is running, fswatch-cmd continues to collect incoming events. This
-    allows it to batch these events and pass them to the COMMAND on the next execution, rather
-    than triggering the COMMAND for each individual event.
+    While the COMMAND is running, fswatch-cmd continues to collect incoming events.
+    This allows it to batch these events and pass them to the COMMAND on the next
+    execution, rather than triggering the COMMAND for each individual event.
 
-    All detected events are passed to the COMMAND via the EVENTS environment variable, where
-    each event is separated by a newline
+    All detected events are passed to the COMMAND via the EVENTS environment
+    variable, where each event is separated by a newline
 
     Key Advantages of using fswatch-cmd:
 
-      1. Event Batching: It aggregates filesystem events and passes them to the command at once,
-         reducing redundant command executions.
-      2. Performance Efficiency: Avoids launching a new process for each event, which can be
-         resource-intensive.
-      3. Simplified Event Handling: The COMMAND can handle all collected events in a single
-         execution, improving the logic and reducing complexity when handling frequent or
-         high-volume filesystem changes.
+    1. Event Batching: It aggregates filesystem events and passes them to the command at once,
+        reducing redundant command executions.
+    2. Performance Efficiency: Avoids launching a new process for each event, which can be
+        resource-intensive.
+    3. Simplified Event Handling: The COMMAND can handle all collected events in a single
+        execution, improving the logic and reducing complexity when handling frequent or
+        high-volume filesystem changes.
 
 OPTIONS
 
@@ -82,6 +84,7 @@ EXAMPLE
 
         fswatch-cmd  src-folder/   mirror src-folder/ dest-server:dst-folder/
 
-    The 'mirror' command is a wrapper around rsync to easily do mirroring. See:
-    https://github.com/harcokuppens/mirror/
+    The 'mirror' command is a wrapper around rsync to easily do mirroring.
+    See: https://github.com/harcokuppens/mirror/
+
 ```
