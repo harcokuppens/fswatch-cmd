@@ -34,7 +34,7 @@ Requirements:
 
 ## Documentation
 
-Documentation by giving no arguments to `fswatch-cmd` command:
+Documentation by giving the help option to `fswatch-cmd` command:
 
 ```console
 $ fswatch-cmd -h
