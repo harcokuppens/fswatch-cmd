@@ -63,13 +63,13 @@ DESCRIPTION
 
     Key Advantages of using fswatch-cmd:
 
-    1. Event Batching: It aggregates filesystem events and passes them to the command at once,
-        reducing redundant command executions.
-    2. Performance Efficiency: Avoids launching a new process for each event, which can be
-        resource-intensive.
-    3. Simplified Event Handling: The COMMAND can handle all collected events in a single
-        execution, improving the logic and reducing complexity when handling frequent or
-        high-volume filesystem changes.
+    1. Event Batching: It aggregates filesystem events and passes them to the
+       command at once, reducing redundant command executions.
+    2. Performance Efficiency: Avoids launching a new process for each event, which
+       can be resource-intensive.
+    3. Simplified Event Handling: The COMMAND can handle all collected events in a
+       single execution, improving the logic and reducing complexity when handling
+       frequent or high-volume filesystem changes.
 
 OPTIONS
 
