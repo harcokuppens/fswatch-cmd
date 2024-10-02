@@ -202,7 +202,7 @@ fswatchcmd() {
         case "$opt" in
         h) echo "$HELP" && exit 0 ;;
         q) LOGLEVEL="1" ;;                       # suppress non-error messages
-        v) LOGLEVEL="3" ;;                       # verbose output (also show debug messages)
+        v) LOGLEVEL="3" && echo "Verbose" ;;     # verbose output (also show debug messages)
         x) excluded_events_commasep=${OPTARG} ;; # Get the comma-separated list of events excluded
         e) allowed_events_commasep=${OPTARG} ;;  # Get the comma-separated list allowed
         *) error "Invalid option: -$OPTARG\n$USAGE\n" && exit 1 ;;
@@ -241,7 +241,7 @@ fswatchcmd() {
     segments=()
     fswatch -t -f "%FT%T" -x -r -0 "${fswatch_allowed_events_args[@]}" "$watchdir" | while readbuffer segments $'\0'; do
 
-        info "running cmd triggered by  ${#segments[@]} fs events"
+        info "running cmd triggered by ${#segments[@]} fs event(s)\n"
 
         # Serialize array using a newline as separator
         export EVENTS=$(serialize_array segments $'\n')
