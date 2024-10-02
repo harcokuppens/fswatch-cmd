@@ -47,7 +47,7 @@ NAME
 
 USAGE
 
-    fswatch-cmd [-h] [-e EVENTS] [-x EVENTS] WATCHDIR COMMAND [ARG]..
+    fswatch-cmd [-h] [-v] [-q] [-e EVENTS] [-x EVENTS] WATCHDIR COMMAND [ARG]..
 
 DESCRIPTION
 
@@ -74,6 +74,8 @@ DESCRIPTION
 OPTIONS
 
     -h   display this help and exit
+    -q   quiet; suppress non-error messages
+    -v   verbose output
     -e   comma-separated list of allowed events
     -x   comma-separated list of excluded events
 

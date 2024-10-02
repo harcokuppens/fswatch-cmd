@@ -8,6 +8,13 @@ fi
 # note: for 'read -t 0' to work you need at least bash 4.0. I can only test on bash version 5, so I just require that version.
 
 readonly USAGE="
+Usage:
+  fswatch-cmd [-h] [-v] [-q] [-e EVENTS] [-x EVENTS] WATCHDIR COMMAND [ARG]..
+
+Try 'fswatch-cmd -h' for more information.
+"
+
+readonly HELP="
 NAME
 
     fswatch-cmd - monitoring and batching filesystem changes into smooth, efficient
@@ -16,7 +23,7 @@ NAME
 
 USAGE
 
-    fswatch-cmd [-h] [-e EVENTS] [-x EVENTS] WATCHDIR COMMAND [ARG]..
+    fswatch-cmd [-h] [-v] [-q] [-e EVENTS] [-x EVENTS] WATCHDIR COMMAND [ARG]..
 
 DESCRIPTION
 
@@ -43,6 +50,8 @@ DESCRIPTION
 OPTIONS
 
     -h   display this help and exit
+    -q   quiet; suppress non-error messages
+    -v   verbose output
     -e   comma-separated list of allowed events
     -x   comma-separated list of excluded events
 
@@ -189,9 +198,11 @@ error() {
 fswatchcmd() {
 
     # Parse command-line arguments
-    while getopts ":x:e:h" opt; do
+    while getopts ":x:e:hqv" opt; do
         case "$opt" in
-        h) echo "$USAGE" && exit 0 ;;
+        h) echo "$HELP" && exit 0 ;;
+        q) LOGLEVEL="1" ;;                       # suppress non-error messages
+        v) LOGLEVEL="3" ;;                       # verbose output (also show debug messages)
         x) excluded_events_commasep=${OPTARG} ;; # Get the comma-separated list of events excluded
         e) allowed_events_commasep=${OPTARG} ;;  # Get the comma-separated list allowed
         *) error "Invalid option: -$OPTARG\n$USAGE\n" && exit 1 ;;
