@@ -37,6 +37,8 @@ Requirements:
 Documentation by giving no arguments to `fswatch-cmd` command:
 
 ```console
+$ fswatch-cmd -h
+
 NAME
 
     fswatch-cmd - monitoring and batching filesystem changes into smooth, efficient
@@ -45,7 +47,7 @@ NAME
 
 USAGE
 
-    fswatch-cmd [-e EVENTS] [-x EVENTS] WATCHDIR COMMAND [ARG]..
+    fswatch-cmd [-h] [-e EVENTS] [-x EVENTS] WATCHDIR COMMAND [ARG]..
 
 DESCRIPTION
 
@@ -71,7 +73,9 @@ DESCRIPTION
 
 OPTIONS
 
-    -e comma-separated list of allowed events -x comma-separated list of excluded events
+    -h   display this help and exit
+    -e   comma-separated list of allowed events
+    -x   comma-separated list of excluded events
 
     All events are described in the manpage of fswatch.
 
