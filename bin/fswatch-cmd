@@ -241,6 +241,8 @@ fswatchcmd() {
     segments=()
     fswatch -t -f "%FT%T" -x -r -0 "${fswatch_allowed_events_args[@]}" "$watchdir" | while readbuffer segments $'\0'; do
 
+        info "running cmd triggered by  ${#segments[@]} fs events"
+
         # Serialize array using a newline as separator
         export EVENTS=$(serialize_array segments $'\n')
 
