@@ -69,6 +69,7 @@ EXAMPLE
 "
 
 LOGLEVEL="2" # DEBUG(3),INFO(2),ERROR(1),OFF(0)
+retry_cmd_in_seconds=10
 excluded_events_array=()
 allowed_events_array=()
 
@@ -237,7 +238,8 @@ fswatchcmd() {
     cmd=$(args2str "$@")
     info "starting watching $watchdir\n"
     info "with cmd: '$cmd'\n"
-    debug "fswatch cmd:" $(args2str fswatch -t -f "%FT%T" -x -r -0 "${fswatch_allowed_events_args[@]}" "$watchdir") "\n"
+    fswatchcmd=$(args2str fswatch -t -f '"%%FT%%T"' -x -r -0 "${fswatch_allowed_events_args[@]}" "$watchdir")
+    debug "fswatch cmd: '$fswatchcmd'\n"
     segments=()
     fswatch -t -f "%FT%T" -x -r -0 "${fswatch_allowed_events_args[@]}" "$watchdir" | while readbuffer segments $'\0'; do
 
@@ -246,18 +248,24 @@ fswatchcmd() {
         # Serialize array using a newline as separator
         export EVENTS=$(serialize_array segments $'\n')
 
-        # run cmd
-        # note: we run process in background because otherwise on signal
-        #       this process gets signal, and not this shell script!
-        debug "running cmd: $cmd \n"
-        "$@" &
-        pid=$!
-        wait $pid
-        exitcode=$?
-        debug "exitcode cmd $exitcode \n"
-        if [[ "$exitcode" -ne "0" ]]; then
-            error "exitcode:$exitcode from cmd : $cmd\n"
-        fi
+        while true; do
+            # run cmd
+            # note: we run process in background because otherwise on signal
+            #       this process gets signal, and not this shell script!
+            debug "running cmd: $cmd \n"
+            "$@" &
+            pid=$!
+            wait $pid
+            exitcode=$?
+            debug "exitcode cmd $exitcode \n"
+            if [[ "$exitcode" -ne "0" ]]; then
+                error "exitcode:$exitcode from cmd : $cmd\n"
+                info "retry cmd in $retry_cmd_in_seconds\n"
+                sleep "$retry_cmd_in_seconds"
+            else
+                break
+            fi
+        done
     done
 }
 
@@ -274,4 +282,5 @@ cleanup() {
 # Trap termination signals (SIGTERM, SIGINT) and call cleanup
 trap cleanup SIGTERM SIGINT
 
+sleep 1 # to make unload messages of service not getting mixed up with loading messages if immediately restarting a service
 fswatchcmd "$@"
