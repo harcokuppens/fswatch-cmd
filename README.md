@@ -63,8 +63,8 @@ DESCRIPTION
 
     1. Event Batching: It aggregates filesystem events and passes them to the command at
        once, reducing redundant command executions.
-    2. Performance Efficiency: Avoids launching a new process for each event, which can be
-       resource-intensive.
+    2. Performance Efficiency: Avoids launching a new process for each event, which can
+       be resource-intensive.
     3. Simplified Event Handling: The COMMAND can handle all collected events in a single
        execution, improving the logic and reducing complexity when handling frequent or
        high-volume filesystem changes.
@@ -83,7 +83,5 @@ EXAMPLE
 
     The 'mirror' command is a wrapper around rsync to easily do mirroring. See:
     https://github.com/harcokuppens/mirror/
-
-
 
 ```
